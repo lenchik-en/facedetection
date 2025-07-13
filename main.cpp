@@ -1,131 +1,228 @@
+#include "opencv2/opencv.hpp"
+
+#include <map>
+#include <vector>
+#include <string>
 #include <iostream>
-#include <opencv2/opencv.hpp>
-#include <opencv2/dnn.hpp>
-#include <opencv2/imgproc.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/objdetect.hpp>
 
-static cv::Mat visualize(cv::Mat input, cv::Mat faces, bool print_flag=false, double fps=-1, int thickness=2);
+const std::map<std::string, int> str2backend{
+        {"opencv", cv::dnn::DNN_BACKEND_OPENCV}, {"cuda", cv::dnn::DNN_BACKEND_CUDA},
+        {"timvx",  cv::dnn::DNN_BACKEND_TIMVX},  {"cann", cv::dnn::DNN_BACKEND_CANN}
+};
+const std::map<std::string, int> str2target{
+        {"cpu", cv::dnn::DNN_TARGET_CPU}, {"cuda", cv::dnn::DNN_TARGET_CUDA},
+        {"npu", cv::dnn::DNN_TARGET_NPU}, {"cuda_fp16", cv::dnn::DNN_TARGET_CUDA_FP16}
+};
 
-int main(int argc, char ** argv)
+class YuNet
 {
-    cv::CommandLineParser parser(argc, argv,
-                                 "{help  h           |            | Print this message.}"
-                                 "{input i           |            | Path to the input image. Omit for detecting on default camera.}"
-                                 "{backend_id        | 0          | Backend to run on. 0: default, 1: Halide, 2: Intel's Inference Engine, 3: OpenCV, 4: VKCOM, 5: CUDA}"
-                                 "{target_id         | 0          | Target to run on. 0: CPU, 1: OpenCL, 2: OpenCL FP16, 3: Myriad, 4: Vulkan, 5: FPGA, 6: CUDA, 7: CUDA FP16, 8: HDDL}"
-                                 "{model m           | yunet.onnx | Path to the model. Download yunet.onnx in https://github.com/ShiqiYu/libfacedetection.train/tree/master/tasks/task1/onnx.}"
-                                 "{score_threshold   | 0.9        | Filter out faces of score < score_threshold.}"
-                                 "{nms_threshold     | 0.3        | Suppress bounding boxes of iou >= nms_threshold.}"
-                                 "{top_k             | 5000       | Keep top_k bounding boxes before NMS.}"
-                                 "{save  s           | false      | Set true to save results. This flag is invalid when using camera.}"
-                                 "{vis   v           | true       | Set true to open a window for result visualization. This flag is invalid when using camera.}"
-    );
-    if (argc == 1 || parser.has("help"))
+public:
+    YuNet(const std::string& model_path,
+          const cv::Size& input_size = cv::Size(320, 320),
+          float conf_threshold = 0.6f,
+          float nms_threshold = 0.3f,
+          int top_k = 5000,
+          int backend_id = 0,
+          int target_id = 0)
+            : model_path_(model_path), input_size_(input_size),
+              conf_threshold_(conf_threshold), nms_threshold_(nms_threshold),
+              top_k_(top_k), backend_id_(backend_id), target_id_(target_id)
     {
-        parser.printMessage();
-        return -1;
+        model = cv::FaceDetectorYN::create(model_path_, "", input_size_, conf_threshold_, nms_threshold_, top_k_, backend_id_, target_id_);
     }
 
-    cv::String modelPath = parser.get<cv::String>("model");
-    int backendId = parser.get<int>("backend_id");
-    int targetId = parser.get<int>("target_id");
-
-    float scoreThreshold = parser.get<float>("score_threshold");
-    float nmsThreshold = parser.get<float>("nms_threshold");
-    int topK = parser.get<int>("top_k");
-
-    bool save = parser.get<bool>("save");
-    bool vis = parser.get<bool>("vis");
-
-    //Initialize detector
-    cv::Ptr<cv::FaceDetectorYN> detector = cv::FaceDetectorYN::create(
-            modelPath, "", cv::Size(320, 320),
-            scoreThreshold, nmsThreshold, topK,
-            backendId, targetId);
-
-    int deviceId = 0;
-    cv::VideoCapture cap;
-    cap.open(deviceId, cv::CAP_ANY);
-    int frameWidth = int(cap.get(cv::CAP_PROP_FRAME_WIDTH));
-    int frameHeight = int(cap.get(cv::CAP_PROP_FRAME_HEIGHT));
-    detector->setInputSize(cv::Size(frameWidth, frameHeight));
-
-
-    if (!cap.isOpened())
+    /* Overwrite the input size when creating the model. Size format: [Width, Height].
+    */
+    void setInputSize(const cv::Size& input_size)
     {
-        std::cerr << "Камера не открылась" << std::endl;
-        return -1;
+        input_size_ = input_size;
+        model->setInputSize(input_size_);
     }
 
-    cv::namedWindow("Face detection", cv::WINDOW_AUTOSIZE);
-    std::cout << "Камера успешно открыта" << std::endl;
-
-    cv::Mat frame;
-    cv::TickMeter tm;
-    while (cv::waitKey(1) != 'q') //press 'q' to exit
+    cv::Mat infer(const cv::Mat image)
     {
-        if (!cap.read(frame))
+        cv::Mat res;
+        model->detect(image, res);
+        return res;
+    }
+
+private:
+    cv::Ptr<cv::FaceDetectorYN> model;
+
+    std::string model_path_;
+    cv::Size input_size_;
+    float conf_threshold_;
+    float nms_threshold_;
+    int top_k_;
+    int backend_id_;
+    int target_id_;
+};
+
+cv::Mat visualize(const cv::Mat& image, const cv::Mat& faces, float fps = -1.f)
+{
+    static cv::Scalar box_color{0, 255, 0};
+    static std::vector<cv::Scalar> landmark_color{
+            cv::Scalar(255,   0,   0), // right eye
+            cv::Scalar(  0,   0, 255), // left eye
+            cv::Scalar(  0, 255,   0), // nose tip
+            cv::Scalar(255,   0, 255), // right mouth corner
+            cv::Scalar(  0, 255, 255)  // left mouth corner
+    };
+    static cv::Scalar text_color{0, 255, 0};
+
+    cv::Mat output_image = image.clone();
+
+    if (fps >= 0)
+    {
+        cv::putText(output_image, cv::format("FPS: %.2f", fps), cv::Point(0, 15), cv::FONT_HERSHEY_SIMPLEX, 0.5, text_color, 2);
+    }
+
+    for (int i = 0; i < faces.rows; ++i)
+    {
+        // Draw bounding boxes
+        int x1 = static_cast<int>(faces.at<float>(i, 0));
+        int y1 = static_cast<int>(faces.at<float>(i, 1));
+        int w = static_cast<int>(faces.at<float>(i, 2));
+        int h = static_cast<int>(faces.at<float>(i, 3));
+        cv::rectangle(output_image, cv::Rect(x1, y1, w, h), box_color, 2);
+
+        // Confidence as text
+        float conf = faces.at<float>(i, 14);
+        cv::putText(output_image, cv::format("%.4f", conf), cv::Point(x1, y1+12), cv::FONT_HERSHEY_DUPLEX, 0.5, text_color);
+
+        // Draw landmarks
+        for (int j = 0; j < landmark_color.size(); ++j)
         {
-            std::cerr << "No frames grabbed!\n";
-            break;
+            int x = static_cast<int>(faces.at<float>(i, 2*j+4)), y = static_cast<int>(faces.at<float>(i, 2*j+5));
+            cv::circle(output_image, cv::Point(x, y), 2, landmark_color[j], 2);
         }
 
-        cv::Mat faces;
-        tm.start();
-        detector->detect(frame, faces);
-        tm.stop();
+        // Вырезаем ROI, приводим к размеру 112x112
+        cv::Mat faceROI = output_image(cv::Rect(x1, y1, w, h)).clone();
+        cv::resize(faceROI, faceROI, cv::Size(112, 112));
 
-        cv::Mat vis_frame = visualize(frame, faces, false, tm.getFPS());
+        // Преобразуем в blob для MobileFaceNet
+        cv::Mat blob = cv::dnn::blobFromImage(faceROI, 1.0 / 128.0, cv::Size(112, 112),
+                                              cv::Scalar(127.5, 127.5, 127.5), true, false);
 
-        cv::imshow("Face detection", frame);
+        // Пропускаем через сеть
+        static cv::dnn::Net recognizer = cv::dnn::readNet("/Users/elenagrigoreva/CLionProjects/facedetection/MobileFaceNet.onnx");
+        recognizer.setInput(blob);
+        cv::Mat embedding = recognizer.forward();
 
-        tm.reset();
+        std::cout << "Face " << i << " embedding vector size: " << embedding.total() << std::endl;
+    }
+    return output_image;
+}
+
+int main(int argc, char** argv)
+{
+    cv::CommandLineParser parser(argc, argv,
+                                 "{help  h           |                                   | Print this message}"
+                                 "{input i           |                                   | Set input to a certain image, omit if using camera}"
+                                 "{model m           | face_detection_yunet_2023mar.onnx  | Set path to the model}"
+                                 "{backend b         | opencv                            | Set DNN backend}"
+                                 "{target t          | cpu                               | Set DNN target}"
+                                 "{save s            | false                             | Whether to save result image or not}"
+                                 "{vis v             | false                             | Whether to visualize result image or not}"
+                                 /* model params below*/
+                                 "{conf_threshold    | 0.9                               | Set the minimum confidence for the model to identify a face. Filter out faces of conf < conf_threshold}"
+                                 "{nms_threshold     | 0.3                               | Set the threshold to suppress overlapped boxes. Suppress boxes if IoU(box1, box2) >= nms_threshold, the one of higher score is kept.}"
+                                 "{top_k             | 5000                              | Keep top_k bounding boxes before NMS. Set a lower value may help speed up postprocessing.}"
+    );
+    if (parser.has("help"))
+    {
+        parser.printMessage();
+        return 0;
+    }
+
+    std::string input_path = parser.get<std::string>("input");
+    std::string model_path = parser.get<std::string>("model");
+    std::string backend = parser.get<std::string>("backend");
+    std::string target = parser.get<std::string>("target");
+    bool save_flag = parser.get<bool>("save");
+    bool vis_flag = parser.get<bool>("vis");
+
+    // model params
+    float conf_threshold = parser.get<float>("conf_threshold");
+    float nms_threshold = parser.get<float>("nms_threshold");
+    int top_k = parser.get<int>("top_k");
+    const int backend_id = str2backend.at(backend);
+    const int target_id = str2target.at(target);
+
+    // Instantiate YuNet
+    YuNet model(model_path, cv::Size(320, 320), conf_threshold, nms_threshold, top_k, backend_id, target_id);
+
+    // If input is an image
+    if (!input_path.empty())
+    {
+        auto image = cv::imread(input_path);
+
+        // Inference
+        model.setInputSize(image.size());
+        auto faces = model.infer(image);
+
+        // Print faces
+        std::cout << cv::format("%d faces detected:\n", faces.rows);
+        for (int i = 0; i < faces.rows; ++i)
+        {
+            int x1 = static_cast<int>(faces.at<float>(i, 0));
+            int y1 = static_cast<int>(faces.at<float>(i, 1));
+            int w = static_cast<int>(faces.at<float>(i, 2));
+            int h = static_cast<int>(faces.at<float>(i, 3));
+            float conf = faces.at<float>(i, 14);
+            std::cout << cv::format("%d: x1=%d, y1=%d, w=%d, h=%d, conf=%.4f\n", i, x1, y1, w, h, conf);
+        }
+
+        // Draw reults on the input image
+        if (save_flag || vis_flag)
+        {
+            auto res_image = visualize(image, faces);
+            if (save_flag)
+            {
+                std::cout << "Results are saved to result.jpg\n";
+                cv::imwrite("result.jpg", res_image);
+            }
+            if (vis_flag)
+            {
+                cv::namedWindow(input_path, cv::WINDOW_AUTOSIZE);
+                cv::imshow(input_path, res_image);
+                cv::waitKey(0);
+            }
+        }
+    }
+    else // Call default camera
+    {
+        int device_id = 0;
+        auto cap = cv::VideoCapture(device_id);
+        int w = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_WIDTH));
+        int h = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_HEIGHT));
+        model.setInputSize(cv::Size(w, h));
+
+        auto tick_meter = cv::TickMeter();
+        cv::Mat frame;
+        while (cv::waitKey(1) < 0)
+        {
+            bool has_frame = cap.read(frame);
+            if (!has_frame)
+            {
+                std::cout << "No frames grabbed! Exiting ...\n";
+                break;
+            }
+
+            // Inference
+            tick_meter.start();
+            cv::Mat faces = model.infer(frame);
+            tick_meter.stop();
+
+            // Draw results on the input image
+            auto res_image = visualize(frame, faces, (float)tick_meter.getFPS());
+            // Visualize in a new window
+            cv::imshow("YuNet Demo", res_image);
+
+            tick_meter.reset();
+        }
     }
 
     return 0;
-}
-
-static cv::Mat visualize(cv::Mat input, cv::Mat faces, bool print_flag, double fps, int thickness)
-{
-    cv::Mat output = input.clone();
-
-
-    if (fps > 0)
-    {
-        cv::putText(output, cv::format("FPS:%.2f", fps), cv::Point2i(0, 15),
-                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0,255,0));
-    }
-
-    for (int i = 0; i < faces.rows; i++) {
-        if (print_flag) {
-            std::cout << "Face" << i
-                      << ", top-left coordinates: (" << faces.at<float>(i, 0) << ", " << faces.at<float>(i, 1) << "), "
-                      << "box width: " << faces.at<float>(i, 2) << ", box height: " << faces.at<float>(i, 3) << ", "
-                      << "score: " << faces.at<float>(i, 14) << "\n";
-        }
-
-        //bounding box
-        cv::rectangle(output, cv::Rect2i(int(faces.at<float>(i, 0)),
-                                         int(faces.at<float>(i, 1)), int(faces.at<float>(i, 2)),
-                                         int(faces.at<float>(i, 3))),
-                      cv::Scalar(0, 255, 0), thickness);
-        //landmarks
-        cv::circle(output, cv::Point2i(int(faces.at<float>(i, 4)), int(faces.at<float>(i, 5))), 2,
-                   cv::Scalar(255, 0, 0), thickness);
-        cv::circle(output, cv::Point2i(int(faces.at<float>(i, 6)), int(faces.at<float>(i, 7))), 2,
-                   cv::Scalar(0, 0, 255), thickness);
-        cv::circle(output, cv::Point2i(int(faces.at<float>(i, 8)), int(faces.at<float>(i, 9))), 2,
-                   cv::Scalar(0, 255, 0), thickness);
-        cv::circle(output, cv::Point2i(int(faces.at<float>(i, 10)), int(faces.at<float>(i, 11))), 2,
-                   cv::Scalar(255, 0, 255), thickness);
-        cv::circle(output, cv::Point2i(int(faces.at<float>(i, 12)), int(faces.at<float>(i, 13))), 2,
-                   cv::Scalar(0, 255, 255), thickness);
-        // Put score
-        cv::putText(output, cv::format("%.4f", faces.at<float>(i, 14)),
-                    cv::Point2i(int(faces.at<float>(i, 0)), int(faces.at<float>(i, 1)) + 15), cv::FONT_HERSHEY_SIMPLEX,
-                    0.5, cv::Scalar(0, 255, 0));
-    }
-
-    return output;
 }
