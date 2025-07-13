@@ -1,9 +1,12 @@
 #include "opencv2/opencv.hpp"
+#include "json.hpp"
+using json = nlohmann::json;
 
 #include <map>
 #include <vector>
 #include <string>
 #include <iostream>
+#include <fstream>
 
 const std::map<std::string, int> str2backend{
         {"opencv", cv::dnn::DNN_BACKEND_OPENCV}, {"cuda", cv::dnn::DNN_BACKEND_CUDA},
@@ -58,7 +61,48 @@ private:
     int target_id_;
 };
 
-cv::Mat visualize(const cv::Mat& image, const cv::Mat& faces, float fps = -1.f)
+void saveEmbedding (const std::string& name, const cv::Mat& embedding) {
+    json entry;
+    entry["name"] = name;
+    for (int i = 0; i < embedding.cols; i++) {
+        entry["embedding"].push_back(embedding.at<float>(0, i));
+    }
+
+    std::ifstream in("face_db.json");
+    json db = in ? json::parse(in) : json::array();
+    db.push_back(entry);
+    std::ofstream out("face_db.json");
+    out << db.dump(2);
+}
+
+// Cosine similarity between two embeddings
+float cosineSimilarity(const cv::Mat& a, const cv::Mat& b) {
+    return a.dot(b) / (cv::norm(a) * cv::norm(b));
+}
+
+std::string findMostSimilar(const cv::Mat& embedding) {
+    std::ifstream in("face_db.json");
+    if (!in) return "no database";
+
+    json db = json::parse(in);
+    float best_sim = -1.0;
+    std::string best_name = "unknown";
+
+    for (auto& entry : db) {
+        std::vector<float> vec = entry["embedding"];
+        cv::Mat db_embedding(1, vec.size(), CV_32F, vec.data());
+        float sim = cosineSimilarity(embedding, db_embedding);
+        if (sim > best_sim) {
+            best_sim = sim;
+            best_name = entry["name"];
+        }
+    }
+
+    if (best_sim > 0.55) return best_name;
+    return "unknown";
+}
+
+cv::Mat visualize(const cv::Mat& image, const cv::Mat& faces, const std::string mode, float fps = -1.f)
 {
     static cv::Scalar box_color{0, 255, 0};
     static std::vector<cv::Scalar> landmark_color{
@@ -97,20 +141,29 @@ cv::Mat visualize(const cv::Mat& image, const cv::Mat& faces, float fps = -1.f)
             cv::circle(output_image, cv::Point(x, y), 2, landmark_color[j], 2);
         }
 
-        // Вырезаем ROI, приводим к размеру 112x112
+        // ROI with size: 112x112
         cv::Mat faceROI = output_image(cv::Rect(x1, y1, w, h)).clone();
         cv::resize(faceROI, faceROI, cv::Size(112, 112));
 
-        // Преобразуем в blob для MobileFaceNet
+        // Make blob for MobileFaceNet
         cv::Mat blob = cv::dnn::blobFromImage(faceROI, 1.0 / 128.0, cv::Size(112, 112),
                                               cv::Scalar(127.5, 127.5, 127.5), true, false);
 
-        // Пропускаем через сеть
+        //recognize from MobileFaceNet
         static cv::dnn::Net recognizer = cv::dnn::readNet("/Users/elenagrigoreva/CLionProjects/facedetection/MobileFaceNet.onnx");
         recognizer.setInput(blob);
         cv::Mat embedding = recognizer.forward();
 
-        std::cout << "Face " << i << " embedding vector size: " << embedding.total() << std::endl;
+        if (mode == "register") {
+            std::string name;
+            std::cout << "Введите имя: ";
+            std::cin >> name;
+            saveEmbedding(name, embedding);
+        } else if (mode == "identify") {
+            std::string match = findMostSimilar(embedding);
+            cv::putText(output_image, match, cv::Point(x1, y1 - 5), cv::FONT_HERSHEY_SIMPLEX, 0.6, text_color, 2);
+        }
+
     }
     return output_image;
 }
@@ -121,6 +174,7 @@ int main(int argc, char** argv)
                                  "{help  h           |                                   | Print this message}"
                                  "{input i           |                                   | Set input to a certain image, omit if using camera}"
                                  "{model m           | face_detection_yunet_2023mar.onnx  | Set path to the model}"
+                                 "{mode             | identify                           | Mode: register or identify}"
                                  "{backend b         | opencv                            | Set DNN backend}"
                                  "{target t          | cpu                               | Set DNN target}"
                                  "{save s            | false                             | Whether to save result image or not}"
@@ -140,6 +194,7 @@ int main(int argc, char** argv)
     std::string model_path = parser.get<std::string>("model");
     std::string backend = parser.get<std::string>("backend");
     std::string target = parser.get<std::string>("target");
+    std::string mode =  parser.get<std::string>("mode");
     bool save_flag = parser.get<bool>("save");
     bool vis_flag = parser.get<bool>("vis");
 
@@ -177,7 +232,7 @@ int main(int argc, char** argv)
         // Draw reults on the input image
         if (save_flag || vis_flag)
         {
-            auto res_image = visualize(image, faces);
+            auto res_image = visualize(image, faces, mode);
             if (save_flag)
             {
                 std::cout << "Results are saved to result.jpg\n";
@@ -216,7 +271,7 @@ int main(int argc, char** argv)
             tick_meter.stop();
 
             // Draw results on the input image
-            auto res_image = visualize(frame, faces, (float)tick_meter.getFPS());
+            auto res_image = visualize(frame, faces, mode, (float)tick_meter.getFPS());
             // Visualize in a new window
             cv::imshow("YuNet Demo", res_image);
 
