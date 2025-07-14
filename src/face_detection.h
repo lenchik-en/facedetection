@@ -1,5 +1,5 @@
-#ifndef FACEDETECTION_FCA_H
-#define FACEDETECTION_FCA_H
+#ifndef FACEDETECTION_FACE_DETECTION_H
+#define FACEDETECTION_FACE_DETECTION_H
 
 #include <map>
 #include <vector>
@@ -9,6 +9,7 @@
 
 #include "opencv2/opencv.hpp"
 #include "../include/json.hpp"
+#include "database.h"
 
 using json = nlohmann::json;
 
@@ -21,10 +22,6 @@ const std::map<std::string, int> str2target{
         {"npu", cv::dnn::DNN_TARGET_NPU}, {"cuda_fp16", cv::dnn::DNN_TARGET_CUDA_FP16}
 };
 
+cv::Mat visualize(const cv::Mat& image, const cv::Mat& faces, const std::string& mode, Database& db, float fps = -1.f);
 
-void saveEmbedding (const std::string& name, const cv::Mat& embedding);
-float cosineSimilarity(const cv::Mat& a, const cv::Mat& b);
-std::string findMostSimilar(const cv::Mat& embedding);
-cv::Mat visualize(const cv::Mat& image, const cv::Mat& faces, const std::string mode, float fps = -1.f);
-
-#endif //FACEDETECTION_FCA_H
+#endif //FACEDETECTION_FACE_DETECTION_H

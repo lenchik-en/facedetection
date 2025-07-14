@@ -1,6 +1,6 @@
-#include "FCA.h"
+#include "face_detection.h"
 
-cv::Mat visualize(const cv::Mat& image, const cv::Mat& faces, const std::string mode, float fps)
+cv::Mat visualize(const cv::Mat& image, const cv::Mat& faces, const std::string& mode, Database& db, float fps)
 {
     static cv::Scalar box_color{0, 255, 0};
     static std::vector<cv::Scalar> landmark_color{
@@ -56,58 +56,12 @@ cv::Mat visualize(const cv::Mat& image, const cv::Mat& faces, const std::string 
             std::string name;
             std::cout << "Введите имя: ";
             std::cin >> name;
-            saveEmbedding(name, embedding);
+            db.saveEmbedding(name, embedding);
         } else if (mode == "identify") {
-            std::string match = findMostSimilar(embedding);
+            std::string match = db.findMostSimilar(embedding);
             cv::putText(output_image, match, cv::Point(x1, y1 - 5), cv::FONT_HERSHEY_SIMPLEX, 0.6, text_color, 2);
         }
 
     }
     return output_image;
-}
-
-
-void saveEmbedding (const std::string& name, const cv::Mat& embedding) {
-    json entry;
-    entry["name"] = name;
-    for (int i = 0; i < embedding.cols; i++) {
-        entry["embedding"].push_back(embedding.at<float>(0, i));
-    }
-
-    std::ifstream in("face_db.json");
-    json db = in ? json::parse(in) : json::array();
-    db.push_back(entry);
-    std::ofstream out("face_db.json");
-    out << db.dump(2);
-}
-
-// Cosine similarity between two embeddings
-float cosineSimilarity(const cv::Mat& a, const cv::Mat& b) {
-    return a.dot(b) / (cv::norm(a) * cv::norm(b));
-}
-
-//TODO: переделать под булевую функцию
-std::string findMostSimilar(const cv::Mat& embedding) {
-    //TODO: не корректная работа с базой данный
-    std::ifstream in("face_db.json");
-    if (!in) return "no database";
-
-    json db = json::parse(in);
-
-
-    float best_sim = -1.0;
-    std::string best_name = "unknown";
-
-    for (auto& entry : db) {
-        std::vector<float> vec = entry["embedding"];
-        cv::Mat db_embedding(1, vec.size(), CV_32F, vec.data());
-        float sim = cosineSimilarity(embedding, db_embedding);
-        if (sim > best_sim) {
-            best_sim = sim;
-            best_name = entry["name"];
-        }
-    }
-
-    if (best_sim > 0.55) return best_name;
-    return "unknown";
 }

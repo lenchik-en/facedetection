@@ -10,7 +10,8 @@ find_package(OpenCV 4.5.4 REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 add_executable(main src/main.cpp
-        src/FCA.h
+        src/face_detection.h
         src/YuNet.h
-        src/FCA_func.cpp)
+        src/visualiser.cpp
+        src/database.h)
 target_link_libraries(main ${OpenCV_LIBS})

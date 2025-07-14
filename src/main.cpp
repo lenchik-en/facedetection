@@ -1,10 +1,12 @@
-#include "FCA.h"
+#include "face_detection.h"
 #include "YuNet.h"
+#include "database.h"
 
 int main(int argc, char** argv)
 {
     cv::CommandLineParser parser(argc, argv,
                                  "{help  h           |                                   | Print this message}"
+                                 "{database  db           | face_db.json                       | Set path to the database}"
                                  "{input i           |                                   | Set input to a certain image, omit if using camera}"
                                  "{model m           | face_detection_yunet_2023mar.onnx  | Set path to the model}"
                                  "{mode             | identify                           | Mode: register or identify}"
@@ -23,6 +25,7 @@ int main(int argc, char** argv)
         return 0;
     }
 
+    Database db(parser.get<std::string>("database"));
     std::string input_path = parser.get<std::string>("input");
     std::string model_path = parser.get<std::string>("model");
     std::string backend = parser.get<std::string>("backend");
@@ -65,7 +68,7 @@ int main(int argc, char** argv)
         // Draw reults on the input image
         if (save_flag || vis_flag)
         {
-            auto res_image = visualize(image, faces, mode);
+            auto res_image = visualize(image, faces, mode, db);
             if (save_flag)
             {
                 std::cout << "Results are saved to result.jpg\n";
@@ -104,7 +107,7 @@ int main(int argc, char** argv)
             tick_meter.stop();
 
             // Draw results on the input image
-            auto res_image = visualize(frame, faces, mode, (float)tick_meter.getFPS());
+            auto res_image = visualize(frame, faces, mode, db, (float)tick_meter.getFPS());
             // Visualize in a new window
             cv::imshow("Face detection for Avrora", res_image);
 
