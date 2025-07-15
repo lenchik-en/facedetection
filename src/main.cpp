@@ -11,6 +11,7 @@ int main(int argc, char** argv)
         "{input i           |                                   | Set input to a certain image, "
         "omit if using camera}"
         "{model m           | face_detection_yunet_2023mar.onnx  | Set path to the model}"
+        "{v-model vm        | MobileFaceNet.onnx             | Set path to the model for vectoring}"
         "{mode             | identify                           | Mode: register or identify}"
         "{backend b         | opencv                            | Set DNN backend}"
         "{target t          | cpu                               | Set DNN target}"
@@ -35,6 +36,7 @@ int main(int argc, char** argv)
     Database    db(parser.get<std::string>("database"));
     std::string input_path = parser.get<std::string>("input");
     std::string model_path = parser.get<std::string>("model");
+    std::string vmodel_path = parser.get<std::string>("v-model");
     std::string backend    = parser.get<std::string>("backend");
     std::string target     = parser.get<std::string>("target");
     std::string mode       = parser.get<std::string>("mode");
@@ -77,7 +79,7 @@ int main(int argc, char** argv)
         // Draw reults on the input image
         if (save_flag || vis_flag)
         {
-            auto res_image = visualize(image, faces, mode, db);
+            auto res_image = visualize(vmodel_path, image, faces, mode, db);
             if (save_flag)
             {
                 std::cout << "Results are saved to result.jpg\n";
@@ -116,7 +118,7 @@ int main(int argc, char** argv)
             tick_meter.stop();
 
             // Draw results on the input image
-            auto res_image = visualize(frame, faces, mode, db, (float)tick_meter.getFPS());
+            auto res_image = visualize(vmodel_path, frame, faces, mode, db, (float)tick_meter.getFPS());
             // Visualize in a new window
             cv::imshow("Face detection for Avrora", res_image);
 

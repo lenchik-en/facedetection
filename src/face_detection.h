@@ -23,7 +23,7 @@ const std::map<std::string, int> str2target{{"cpu", cv::dnn::DNN_TARGET_CPU},
                                             {"npu", cv::dnn::DNN_TARGET_NPU},
                                             {"cuda_fp16", cv::dnn::DNN_TARGET_CUDA_FP16}};
 
-cv::Mat visualize(const cv::Mat& image, const cv::Mat& faces, const std::string& mode, Database& db,
+cv::Mat visualize(const std::string& vmodel, cv::Mat& image, const cv::Mat& faces, const std::string& mode, Database& db,
                   float fps = -1.f);
 
 #endif // FACEDETECTION_FACE_DETECTION_H

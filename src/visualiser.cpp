@@ -1,6 +1,6 @@
 #include "face_detection.h"
 
-cv::Mat visualize(const cv::Mat& image, const cv::Mat& faces, const std::string& mode, Database& db,
+cv::Mat visualize(const std::string& vmodel, cv::Mat& image, const cv::Mat& faces, const std::string& mode, Database& db,
                   float fps)
 {
     static cv::Scalar              box_color{0, 255, 0};
@@ -52,9 +52,7 @@ cv::Mat visualize(const cv::Mat& image, const cv::Mat& faces, const std::string&
                                               cv::Scalar(127.5, 127.5, 127.5), true, false);
 
         // recognize from MobileFaceNet
-        static cv::dnn::Net recognizer = cv::dnn::readNet(
-            "/Users/elenagrigoreva/CLionProjects/facedetection/models/"
-            "MobileFaceNet.onnx");
+        static cv::dnn::Net recognizer = cv::dnn::readNet(vmodel);
         recognizer.setInput(blob);
         cv::Mat embedding = recognizer.forward();
 
