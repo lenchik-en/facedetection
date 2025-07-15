@@ -44,7 +44,12 @@ cv::Mat visualize(const std::string& vmodel, cv::Mat& image, const cv::Mat& face
         }
 
         // ROI with size: 112x112
-        cv::Mat faceROI = output_image(cv::Rect(x1, y1, w, h)).clone();
+        cv::Rect rect(x1, y1, w, h);
+        rect &= cv::Rect(0, 0, output_image.cols, output_image.rows); //ограничение
+
+        if (rect.width <= 0 || rect.height <= 0) continue;
+
+        cv::Mat faceROI = output_image(rect).clone();
         cv::resize(faceROI, faceROI, cv::Size(112, 112));
 
         // Make blob for MobileFaceNet
