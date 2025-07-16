@@ -1,2 +1,7 @@
-/.idea
-/build
+.idea/
+build/
+*.log
+*.cache
+*.cmake
+CMakeFiles/
+cmake-build-*/

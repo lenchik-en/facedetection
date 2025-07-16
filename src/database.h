@@ -29,8 +29,7 @@ class Database
         out << db.dump(2);
     }
 
-    // TODO: переделать под булевую функцию
-    std::string findMostSimilar(const cv::Mat& embedding)
+    bool findMostSimilar(const cv::Mat& embedding)
     {
         std::ifstream in(db_path);
         if (!in) return "no database";
@@ -38,7 +37,7 @@ class Database
         json db = json::parse(in);
 
         float       best_sim  = -1.0;
-        std::string best_name = "unknown";
+        //std::string best_name = "unknown";
 
         for (auto& entry : db)
         {
@@ -48,12 +47,12 @@ class Database
             if (sim > best_sim)
             {
                 best_sim  = sim;
-                best_name = entry["name"];
+                //best_name = entry["name"];
             }
         }
 
-        if (best_sim > 0.55) return best_name;
-        return "unknown";
+        if (best_sim > 0.55) return true;
+        return false;
     }
 
    private:

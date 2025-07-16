@@ -70,9 +70,16 @@ cv::Mat visualize(const std::string& vmodel, cv::Mat& image, const cv::Mat& face
         }
         else if (mode == "identify")
         {
-            std::string match = db.findMostSimilar(embedding);
-            cv::putText(output_image, match, cv::Point(x1, y1 - 5), cv::FONT_HERSHEY_SIMPLEX, 0.6,
-                        text_color, 2);
+            //bool match = db.findMostSimilar(embedding);
+            if (db.findMostSimilar(embedding)) {
+                std::cout << "Access allowed\n";
+                //cv::putText(output_image, "Access", cv::Point(x1, y1 - 5), cv::FONT_HERSHEY_SIMPLEX, 0.6,
+                           // text_color, 2);
+            } else {
+                std::cout << "Access denied\n";
+                //cv::putText(output_image, "Access denied", cv::Point(x1, y1 - 5), cv::FONT_HERSHEY_SIMPLEX, 0.6,
+                  //          text_color, 2);
+            }
         }
     }
     return output_image;
