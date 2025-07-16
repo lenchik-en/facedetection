@@ -3,15 +3,21 @@ project(facedetection)
 
 set(CMAKE_CXX_STANDARD 17)
 
-# OpenCV
-set(OpenCV_DIR "/opt/opencv-4.13/lib/cmake/opencv4")
-find_package(OpenCV 4.5.4 REQUIRED)
+# === OpenCV ===
+set(OpenCV_DIR "/opt/opencv-min/lib/cmake/opencv4")
+find_package(OpenCV REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 
-add_executable(main src/main.cpp
+# === Исходники ===
+add_executable(main
+        src/main.cpp
+        src/visualiser.cpp
+        src/database.h
         src/face_detection.h
         src/YuNet.h
-        src/visualiser.cpp
-        src/database.h)
+)
+
+target_include_directories(main PRIVATE src)
+
 target_link_libraries(main ${OpenCV_LIBS})
