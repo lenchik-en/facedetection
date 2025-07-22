@@ -55,6 +55,46 @@
 
 ![structure.png](materials/structure.png)
 
+# Сборка
+
+### Зависимости
+
+- CMake >= 3.10
+- OpenCV >= 4.5.4 (используется FaceDetectorYN)
+- Компилятор C++ с поддержкой C++17
+
+### Клонирование
+
+```bash
+git clone --recurse-submodules https://github.com/lenchik-en/facedetection
+cd facedetection
+```
+
+### Сборка проекта
+
+```bash
+mkdir -p build
+cd build
+cmake ..
+make -j8
+```
+
+### Запуск
+
+```bash
+./main \
+  --model=models/face_detection_yunet_2023mar.onnx \
+  --vm=models/MobileFaceNet.onnx \
+  --database=data/face_db.json \
+  --mode=identify \
+```
+
+### Возможности
+
+- `--mode=register`: сохранить новое лицо в базу (ввод имени вручную)
+- `--mode=identify`: распознать лицо на кадре
+- `--h=help`: Вывод сообщения
+
 ## OpenCV
 Licensed under Apache License 2.0
 https://github.com/opencv/opencv/blob/4.x/LICENSE
