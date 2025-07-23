@@ -5,3 +5,4 @@ build/
 *.cmake
 CMakeFiles/
 cmake-build-*/
+include/opencv_build/

@@ -1,5 +1,18 @@
-#include "YuNet.h"
-#include "database.h"
+// Copyright 2025 Elena Grigoreva
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+#include "YuNet.cpp"
+#include "database.cpp"
 #include "face_detection.h"
 
 int main(int argc, char **argv) {
@@ -56,6 +69,10 @@ int main(int argc, char **argv) {
 
   int device_id = 0;
   auto cap = cv::VideoCapture(device_id);
+  if (!cap.isOpened()) {
+    std::cerr << "Error: Cannot open camera with device_id " << device_id << "\n";
+    return -1;
+}
   int w = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_WIDTH));
   int h = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_HEIGHT));
   model.setInputSize(cv::Size(w, h));
@@ -63,47 +80,31 @@ int main(int argc, char **argv) {
   auto tick_meter = cv::TickMeter();
   cv::Mat frame;
 
-  bool has_frame = cap.read(frame);
-  if (!has_frame) {
-    std::cout << "No frames grabbed!\n";
-    return -1;
-  }
+  while (cv::waitKey(1) < 0)
+  {
 
-  // Inference
-  tick_meter.start();
-  cv::Mat faces = model.infer(frame);
-  tick_meter.stop();
+    bool has_frame = cap.read(frame);
 
-  // Draw results on the input image
-  auto res_image = visualize(vmodel_path, frame, faces, mode, db,
-                             (float)tick_meter.getFPS());
+    if (!has_frame)
+    {
+      std::cout << "No frames grabbed! Exiting ...\n";
+      break;
+    }
 
-  tick_meter.reset();
+    // Inference
+    tick_meter.start();
+    cv::Mat faces = model.infer(frame);
+    tick_meter.stop();
 
+    // Draw results on the input image
+    auto res_image = visualize(vmodel_path, frame, faces, mode, db,
+                               (float)tick_meter.getFPS());
 
     // Visualize in a new window
-  // cv::imshow("Face detection for Avrora", res_image);
+    cv::imshow("Face detection for Avrora", res_image);
 
-  //  while (cv::waitKey(1) < 0) {
-  //    bool has_frame = cap.read(frame);
-  //    if (!has_frame) {
-  //      std::cout << "No frames grabbed! Exiting ...\n";
-  //      break;
-  //    }
-  //
-  //    // Inference
-  //    tick_meter.start();
-  //    cv::Mat faces = model.infer(frame);
-  //    tick_meter.stop();
-  //
-  //    // Draw results on the input image
-  //    auto res_image = visualize(vmodel_path, frame, faces, mode, db,
-  //                               (float)tick_meter.getFPS());
-  //    // Visualize in a new window
-  //    //cv::imshow("Face detection for Avrora", res_image);
-  //
-  //    tick_meter.reset();
-  //  }
+    tick_meter.reset();
+  }
 
-  return 0;
+    return 0;
 }

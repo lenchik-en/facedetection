@@ -32,7 +32,7 @@ class Database
     bool findMostSimilar(const cv::Mat& embedding)
     {
         std::ifstream in(db_path);
-        if (!in) return "no database";
+        if (!in) return false;
 
         json db = json::parse(in);
 

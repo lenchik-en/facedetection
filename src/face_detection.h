@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "../include/json.hpp"
-#include "database.h"
+#include "database.cpp"
 #include "opencv2/opencv.hpp"
 
 using json = nlohmann::json;
