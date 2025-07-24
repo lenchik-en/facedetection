@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include "../database.cpp"
-#include <cstdio> // для std::remove
+#include "../src/database.cpp"
+#include <cstdio>
 
 TEST(DatabaseTest, SaveAndFindMostSimilar) {
     std::string test_db = "test_db.json";

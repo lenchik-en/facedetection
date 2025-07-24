@@ -5,7 +5,7 @@
 #include <string>
 
 #include "../include/json.hpp"
-#include "opencv2/opencv.hpp"
+#include <opencv2/core.hpp>
 using json = nlohmann::json;
 
 class Database

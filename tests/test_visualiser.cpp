@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include "../visualiser.cpp"
-#include "../database.cpp"
+#include "../src/face_detection.h"
+#include "../src/database.cpp"
 #include <opencv2/opencv.hpp>
 #include <cstdio>
 
