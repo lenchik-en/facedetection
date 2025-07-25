@@ -3,7 +3,7 @@ project(facedetection)
 
 set(CMAKE_CXX_STANDARD 17)
 
-# OpenCV options
+#OpenCV options
 set(OPENCV_EXTRA_MODULES_PATH ${CMAKE_SOURCE_DIR}/include/opencv_contrib/modules)
 set(BUILD_LIST core,imgproc,dnn,videoio,highgui,imgcodecs,objdetect,face)
 set(BUILD_opencv_apps OFF)
@@ -14,31 +14,30 @@ set(BUILD_PERF_TESTS OFF)
 set(BUILD_opencv_world OFF)
 set(WITH_CUDA OFF)
 
-# Собираем OpenCV
+#Собираем OpenCV
 add_subdirectory(include/opencv)
 
-
-# Исходники
+#Исходники
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
 add_executable(main ${SOURCES})
 target_include_directories(main PRIVATE
         ${CMAKE_BINARY_DIR}
-    ${CMAKE_BINARY_DIR}/opencv2 # для opencv_modules.hpp
-    ${OpenCV_SOURCE_DIR}/modules/core/include
-    ${OpenCV_SOURCE_DIR}/modules/imgproc/include
-    ${OpenCV_SOURCE_DIR}/modules/highgui/include
-    ${OpenCV_SOURCE_DIR}/modules/videoio/include
-    ${OpenCV_SOURCE_DIR}/modules/imgcodecs/include
-    ${OpenCV_SOURCE_DIR}/modules/dnn/include
+        ${CMAKE_BINARY_DIR}/opencv2 # для opencv_modules.hpp
+        ${OpenCV_SOURCE_DIR}/modules/core/include
+        ${OpenCV_SOURCE_DIR}/modules/imgproc/include
+        ${OpenCV_SOURCE_DIR}/modules/highgui/include
+        ${OpenCV_SOURCE_DIR}/modules/videoio/include
+        ${OpenCV_SOURCE_DIR}/modules/imgcodecs/include
+        ${OpenCV_SOURCE_DIR}/modules/dnn/include
         ${OpenCV_SOURCE_DIR}/modules/objdetect/include
         ${OpenCV_SOURCE_DIR}/modules/calib3d/include
         ${OpenCV_SOURCE_DIR}/modules/features2d/include
         ${OpenCV_SOURCE_DIR}/modules/flann/include
         ${OpenCV_SOURCE_DIR}/modules/photo/include
         ${OPENCV_EXTRA_MODULES_PATH}/face/include
-    ${OpenCV_SOURCE_DIR}/include
+        ${OpenCV_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/include/googletest/googletest/include
-    ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/src
 )
 
 target_link_libraries(main
@@ -66,11 +65,10 @@ add_executable(test_database
         ${TEST_SOURCES}
         ${CMAKE_SOURCE_DIR}/src/visualiser.cpp)
 target_include_directories(test_database PRIVATE
-    ${CMAKE_SOURCE_DIR}/include/googletest/googletest/include
-    ${CMAKE_SOURCE_DIR}/src
-    # ... другие include-пути, если нужно
+        ${CMAKE_SOURCE_DIR}/include/googletest/googletest/include
+        ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_BINARY_DIR}
-        ${CMAKE_BINARY_DIR}/opencv2 # для opencv_modules.hpp
+        ${CMAKE_BINARY_DIR}/opencv2
         ${OpenCV_SOURCE_DIR}/modules/core/include
         ${OpenCV_SOURCE_DIR}/modules/imgproc/include
         ${OpenCV_SOURCE_DIR}/modules/highgui/include
