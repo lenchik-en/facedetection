@@ -70,9 +70,10 @@ int main(int argc, char **argv) {
   int device_id = 0;
   auto cap = cv::VideoCapture(device_id);
   if (!cap.isOpened()) {
-    std::cerr << "Error: Cannot open camera with device_id " << device_id << "\n";
+    std::cerr << "Error: Cannot open camera with device_id " << device_id
+              << "\n";
     return -1;
-}
+  }
   int w = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_WIDTH));
   int h = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_HEIGHT));
   model.setInputSize(cv::Size(w, h));
@@ -80,13 +81,11 @@ int main(int argc, char **argv) {
   auto tick_meter = cv::TickMeter();
   cv::Mat frame;
 
-  while (cv::waitKey(1) < 0)
-  {
+  while (cv::waitKey(1) < 0) {
 
     bool has_frame = cap.read(frame);
 
-    if (!has_frame)
-    {
+    if (!has_frame) {
       std::cout << "No frames grabbed! Exiting ...\n";
       break;
     }
@@ -106,5 +105,5 @@ int main(int argc, char **argv) {
     tick_meter.reset();
   }
 
-    return 0;
+  return 0;
 }
